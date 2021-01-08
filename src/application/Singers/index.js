@@ -1,6 +1,7 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Horizen from '../../baseUI/horizen-item';
 import Scroll from '../../baseUI/scroll';
+import LazyLoad, { forceCheck } from 'react-lazyload';
 import {
   NavContainer,
   ListContainer,
@@ -19,24 +20,29 @@ import {
 } from './store/actionCreators';
 import { connect } from 'react-redux';
 import { categoryTypes, alphaTypes } from '../../api/config';
+import { CategoryDataContext, CHANGE_CATEGORY, CHANGE_ALPHA, Data } from './data';
+
 function Singers(props) {
   const { singerList, enterLoading, pullUpLoading, pullDownLoading, pageCount } = props;
   const { getHotSingerDispatch, updateDispatch, pullDownRefreshDispatch, pullUpRefreshDispatch } = props;
-  let [category, setCategory] = useState('');
-  let [alpha, setAlpha] = useState('');
- 
+  const { data, dispatch } = useContext(CategoryDataContext);
+  // 拿到 category 和 alpha 的值
+  const { category, alpha } = data.toJS();
+
   useEffect(() => {
-    getHotSingerDispatch();
+    if (!singerList.size) {
+      getHotSingerDispatch();
+    }
     // eslint-disable-next-line
   }, []);
 
   let handleUpdateAlpha = (val) => {
-    setAlpha(val);
+    dispatch({ type: CHANGE_ALPHA, data: val });
     updateDispatch(category, val);
   }
 
   let handleUpdateCatetory = (val) => {
-    setCategory(val);
+    dispatch({ type: CHANGE_CATEGORY, data: val });
     updateDispatch(val, alpha);
   }
 
@@ -47,50 +53,55 @@ function Singers(props) {
   const handlePullDown = () => {
     pullDownRefreshDispatch(category, alpha);
   };
-// 渲染函数，返回歌手列表
-const renderSingerList = () => {
-  const list = singerList ? singerList.toJS(): [];
-  return (
-    <List>
-      {
-        list.map((item, index) => {
-          return (
-            <ListItem key={item.accountId + "" + index}>
-              <div className="img_wrapper">
-                <img src={`${item.picUrl}?param=300x300`} width="100%" height="100%" alt="music" />
-              </div>
-              <span className="name">{item.name}</span>
-            </ListItem>
-          )
-        })
-      }
-    </List>
-  )
-};
+  // 渲染函数，返回歌手列表
+  const renderSingerList = () => {
+    const list = singerList ? singerList.toJS() : [];
+    return (
+      <List>
+        {
+          list.map((item, index) => {
+            return (
+              <ListItem key={item.accountId + "" + index}>
+                <div className="img_wrapper">
+                  <LazyLoad placeholder={<img width="100%" height="100%" src={require('./singer.png')} alt="music" />}>
+                    <img src={`${item.picUrl}?param=300x300`} width="100%" height="100%" alt="music" />
+                  </LazyLoad>
+                </div>
+                <span className="name">{item.name}</span>
+              </ListItem>
+            )
+          })
+        }
+      </List>
+    )
+  };
   return (
     <div>
-      <NavContainer>
-        <Horizen
-          list={categoryTypes}
-          title={"分类 (默认热门):"}
-          handleClick={handleUpdateCatetory}
-          oldVal={category}></Horizen>
-        <Horizen
-          list={alphaTypes}
-          title={"首字母:"}
-          handleClick={handleUpdateAlpha}
-          oldVal={alpha}></Horizen>
-      </NavContainer>
-      <ListContainer>
-        <Scroll
-         pullUp={ handlePullUp }
-         pullDown = { handlePullDown }
-         pullUpLoading = { pullUpLoading }
-         pullDownLoading = { pullDownLoading }
-        >
-          {renderSingerList()}
-        </Scroll>
-      </ListContainer>
+      <Data>
+        <NavContainer>
+          <Horizen
+            list={categoryTypes}
+            title={"分类 (默认热门):"}
+            handleClick={handleUpdateCatetory}
+            oldVal={category}></Horizen>
+          <Horizen
+            list={alphaTypes}
+            title={"首字母:"}
+            handleClick={handleUpdateAlpha}
+            oldVal={alpha}></Horizen>
+        </NavContainer>
+        <ListContainer>
+          <Scroll
+            onScroll={forceCheck}
+            pullUp={handlePullUp}
+            pullDown={handlePullDown}
+            pullUpLoading={pullUpLoading}
+            pullDownLoading={pullDownLoading}
+          >
+            {renderSingerList()}
+          </Scroll>
+        </ListContainer>
+      </Data>
     </div>
   )
 }
